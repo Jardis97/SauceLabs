@@ -6,7 +6,7 @@ from pages.product_page import ProductPage
 from pages.cart_page import CartPage
 from pages.checkout_page import CheckoutPage
 logging.basicConfig(level=logging.ERROR)
-
+import os #per far leggere a jenkins il parametro che useremo per username
 from tests.conftest import allure_screenshot
 
 
@@ -21,7 +21,8 @@ def test_CorrectUser(browserInstance, product_page):  #con browserInstance si in
     login_page.open()
     assert login_page.is_username_field_present()
     print("Form Login presente")
-    login_page.enter_username("standard_user")
+    username = os.environ.get("UTENTE", "standard_user") #UTENTE e' una variabile d'ambiente (da Jenkins) che contiene l'username da usare per il login, se non esiste usa standard_user
+    login_page.enter_username(username)
     login_page.enter_password("secret_sauce")
     login_page.click_login()
     allure_screenshot(browserInstance, "Pagina Prodotti post login")
