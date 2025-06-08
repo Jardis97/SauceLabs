@@ -63,7 +63,7 @@ def browserInstance(request): #request prende ciò che gli metto nella linea di 
         chrome_options.add_argument("--incognito")
         chrome_options.add_argument("--headless=new")
         driver = webdriver.Chrome(service=service_obj, options=chrome_options)
-        driver.set_window_size(width, height)
+        driver.set_window_size(1920, 1080)
         driver.implicitly_wait(1)
     elif browser_name == "firefox":
         driver = webdriver.Firefox(service=service_obj)
