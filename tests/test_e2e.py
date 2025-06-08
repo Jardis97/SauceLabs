@@ -22,6 +22,7 @@ def test_CorrectUser(browserInstance, product_page):  #con browserInstance si in
     assert login_page.is_username_field_present()
     print("Form Login presente")
     username = os.environ.get("UTENTE", "standard_user") #UTENTE e' una variabile d'ambiente (da Jenkins) che contiene l'username da usare per il login, se non esiste usa standard_user
+    print(f"Username usato: {username}")
     login_page.enter_username(username)
     login_page.enter_password("secret_sauce")
     login_page.click_login()

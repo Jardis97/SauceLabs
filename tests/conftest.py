@@ -10,6 +10,7 @@ from selenium.webdriver.chrome.options import Options
 from pages.product_page import ProductPage
 from pages.cart_page import CartPage
 from pages.checkout_page import CheckoutPage
+import os #libreria per leggere variabili d'ambiente, per Jenkins
 
 @pytest.fixture
 def product_page(browserInstance):
@@ -52,9 +53,9 @@ def pytest_addoption(parser):
 @pytest.fixture(scope="module") #scope="function" si distrugge ad ogni test, module/session no
 def browserInstance(request): #request prende ciò che gli metto nella linea di comando (es. firefox o chrome) per capire quale browser avviare
     browser_name = request.config.getoption("browser_name", default="chrome") #quando nel terminale gli metto la linea di comando "pytest test_nomefile.py --browser_name firefox, lui si prende il nome di quest'ultima per capire quale browser usare
-    window_size = request.config.getoption("window_size") #imposta risoluzione default quando non metti comando
-    width, height = map(int, window_size.split(","))
-    service_obj = Service()
+    window_size = os.environ.get("RESOLUTION") or request.config.getoption("window_size") #jenkins opzione 1, riga di comando opzione 2 - se non specifico prende default ciò che c'è in adoption
+    width, height = map(int, window_size.replace("x", ",").split(",")) #trasforma stringa in res
+    service_obj = Service() #crea oggetto per il servizio del browser, chromedriver, geckodriver, ecc.
 
     if browser_name == "chrome":
         chrome_options = Options()
