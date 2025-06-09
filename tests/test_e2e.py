@@ -15,8 +15,7 @@ from tests.conftest import allure_screenshot
 @allure.feature("Login")
 @allure.story("Login con credenziali valide")
 @allure.severity(allure.severity_level.CRITICAL)
-def test_CorrectUser(browserInstance, product_page, usernames):  #con browserInstance si intende che il browser e' gia' aperto
-    for username in usernames:
+def test_CorrectUser(browserInstance, product_page, username):  #con browserInstance si intende che il browser e' gia' aperto
         login_page = LoginPage(browserInstance)
         login_page.open()
         assert login_page.is_username_field_present()

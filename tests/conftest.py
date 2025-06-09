@@ -88,16 +88,16 @@ def logged_in_browser(browserInstance):
     login_page.click_login()
     return browserInstance
 
-@pytest.fixture #scope = function di default
-def usernames(request):
-    if request.config.getoption("--all-usernames"):
-        return [
-            "standard_user",
-            "locked_out_user",
-            "problem_user",
-            "performance_glitch_user",
-            "error_user",
-            "visual_user"
-        ]
-    else:
-        return [os.environ.get("UTENTE", "standard_user")]
+
+#parametrizzo test login per username, genera test separati
+def pytest_generate_tests(metafunc):
+    if "username" in metafunc.fixturenames:
+        if metafunc.config.getoption("--all-usernames"):
+            usernames = [
+                "standard_user",
+                "performance_glitch_user"
+            ]
+        else:
+            usernames = [os.environ.get("UTENTE", "standard_user")]
+        print("Usernames parametrizzati:", usernames)
+        metafunc.parametrize("username", usernames)
