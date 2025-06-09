@@ -50,6 +50,10 @@ def pytest_addoption(parser):
     )
 #pytest tests/ --browser_name=firefox/edge ecc
 
+    parser.addoption(
+        "--all-usernames", action="store_true", default=False, help="Esegui test con tutti gli username"
+    )
+
 @pytest.fixture(scope="module") #scope="function" si distrugge ad ogni test, module/session no
 def browserInstance(request): #request prende ciò che gli metto nella linea di comando (es. firefox o chrome) per capire quale browser avviare
     browser_name = request.config.getoption("browser_name", default="chrome") #quando nel terminale gli metto la linea di comando "pytest test_nomefile.py --browser_name firefox, lui si prende il nome di quest'ultima per capire quale browser usare
@@ -83,3 +87,15 @@ def logged_in_browser(browserInstance):
     login_page.enter_password("secret_sauce")
     login_page.click_login()
     return browserInstance
+
+@pytest.fixture #scope = function di default
+def usernames(request):
+    if request.config.getoption("--all-usernames"):
+        return [
+            "standard_user",
+            "locked_out_user",
+            "problem_user",
+            "performance_glitch_user"
+        ]
+    else:
+        return [os.environ.get("UTENTE", "standard_user")]

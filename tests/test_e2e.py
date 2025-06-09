@@ -15,20 +15,18 @@ from tests.conftest import allure_screenshot
 @allure.feature("Login")
 @allure.story("Login con credenziali valide")
 @allure.severity(allure.severity_level.CRITICAL)
-def test_CorrectUser(browserInstance, product_page):  #con browserInstance si intende che il browser e' gia' aperto
-    login_page = LoginPage(browserInstance)
-    #product_page = ProductPage(browserInstance) --> messo direttamente in conftest.py
-    login_page.open()
-    assert login_page.is_username_field_present()
-    print("Form Login presente")
-    username = os.environ.get("UTENTE", "standard_user") #UTENTE e' una variabile d'ambiente (da Jenkins) che contiene l'username da usare per il login, se non esiste usa standard_user
-    print(f"Username usato: {username}")
-    login_page.enter_username(username)
-    login_page.enter_password("secret_sauce")
-    login_page.click_login()
-    allure_screenshot(browserInstance, "Pagina Prodotti post login")
-    assert product_page.is_on_products_page(), "Pagina dei prodotti raggiunta dopo il login"
-    print("Login effettuato con successo con utenza corretta")
+def test_CorrectUser(browserInstance, product_page, usernames):  #con browserInstance si intende che il browser e' gia' aperto
+    for username in usernames:
+        login_page = LoginPage(browserInstance)
+        login_page.open()
+        assert login_page.is_username_field_present()
+        print(f"Username usato: {username}")
+        login_page.enter_username(username)
+        login_page.enter_password("secret_sauce")
+        login_page.click_login()
+        allure_screenshot(browserInstance, "Pagina Prodotti post login")
+        assert product_page.is_on_products_page(), "Pagina dei prodotti raggiunta dopo il login"
+        print("Login effettuato con successo con utenza corretta")
 
 @pytest.mark.smoke
 @pytest.mark.products
