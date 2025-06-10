@@ -74,6 +74,7 @@ def browserInstance(request): #request prende ciò che gli metto nella linea di 
         )
         if browser_name == "chrome":
             options = ChromeOptions()
+            options.add_argument("--incognito") #incognito anche su saucelabs
         elif browser_name == "firefox":
             options = FirefoxOptions()
         else:
