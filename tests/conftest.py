@@ -6,7 +6,8 @@ import allure
 #chrome driver
 from selenium.webdriver.chrome.service import Service
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from pages.product_page import ProductPage
 from pages.cart_page import CartPage
 from pages.checkout_page import CheckoutPage
@@ -63,24 +64,29 @@ def browserInstance(request): #request prende ciò che gli metto nella linea di 
 
     # Se in parallelo, usa Sauce Labs
     if (
-            os.environ.get("PYTEST_XDIST_WORKER")
-            and os.environ.get("SAUCE_USERNAME")
-            and os.environ.get("SAUCE_ACCESS_KEY")
+        os.environ.get("PYTEST_XDIST_WORKER")
+        and os.environ.get("SAUCE_USERNAME")
+        and os.environ.get("SAUCE_ACCESS_KEY")
     ):
         sauce_url = (
             f"https://{os.environ['SAUCE_USERNAME']}:{os.environ['SAUCE_ACCESS_KEY']}"
             "@ondemand.eu-central-1.saucelabs.com:443/wd/hub"
         )
-        capabilities = {
-            "browserName": browser_name,
-            "platformName": "Windows 10",
-            "sauce:options": {}
-        }
-        driver = webdriver.Remote(command_executor=sauce_url, desired_capabilities=capabilities)
+        if browser_name == "chrome":
+            options = ChromeOptions()
+        elif browser_name == "firefox":
+            options = FirefoxOptions()
+        else:
+            raise ValueError(f"Browser non supportato: {browser_name}")
+
+        options.set_capability("browserName", browser_name)
+        options.set_capability("platformName", "Windows 10")
+        options.set_capability("sauce:options", {})
+        driver = webdriver.Remote(command_executor=sauce_url, options=options)
         driver.set_window_size(width, height)
     else:
         if browser_name == "chrome":
-            chrome_options = Options()
+            chrome_options = ChromeOptions()
             chrome_options.add_argument("--disable-notifications")
             chrome_options.add_argument("--incognito")
             # chrome_options.add_argument("--headless=new")
