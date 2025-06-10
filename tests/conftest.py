@@ -61,19 +61,39 @@ def browserInstance(request): #request prende ciò che gli metto nella linea di 
     width, height = map(int, window_size.replace("x", ",").split(",")) #trasforma stringa in res
     service_obj = Service() #crea oggetto per il servizio del browser, chromedriver, geckodriver, ecc.
 
-    if browser_name == "chrome":
-        chrome_options = Options()
-        #tolgo pop up password ecc
-        chrome_options.add_argument("--disable-notifications")
-        chrome_options.add_argument("--incognito")
-        #chrome_options.add_argument("--headless=new")
-        driver = webdriver.Chrome(service=service_obj, options=chrome_options)
+    # Se in parallelo, usa Sauce Labs
+    if (
+            os.environ.get("PYTEST_XDIST_WORKER")
+            and os.environ.get("SAUCE_USERNAME")
+            and os.environ.get("SAUCE_ACCESS_KEY")
+    ):
+        sauce_url = (
+            f"https://{os.environ['SAUCE_USERNAME']}:{os.environ['SAUCE_ACCESS_KEY']}"
+            "@ondemand.eu-central-1.saucelabs.com:443/wd/hub"
+        )
+        capabilities = {
+            "browserName": browser_name,
+            "platformName": "Windows 10",
+            "sauce:options": {}
+        }
+        driver = webdriver.Remote(command_executor=sauce_url, desired_capabilities=capabilities)
         driver.set_window_size(width, height)
-        driver.implicitly_wait(1)
-    elif browser_name == "firefox":
-        driver = webdriver.Firefox(service=service_obj)
-        driver.set_window_size(width, height)
-        driver.implicitly_wait(4)
+    else:
+        if browser_name == "chrome":
+            chrome_options = Options()
+            chrome_options.add_argument("--disable-notifications")
+            chrome_options.add_argument("--incognito")
+            # chrome_options.add_argument("--headless=new")
+            driver = webdriver.Chrome(service=service_obj, options=chrome_options)
+            driver.set_window_size(width, height)
+            driver.implicitly_wait(1)
+        elif browser_name == "firefox":
+            driver = webdriver.Firefox(service=service_obj)
+            driver.set_window_size(width, height)
+            driver.implicitly_wait(4)
+        else:
+            raise ValueError(f"Browser non supportato: {browser_name}")
+
     yield driver #qui finisce il setup iniziato in riga 19 con pytest.fixture
     driver.quit() #teardown
 
