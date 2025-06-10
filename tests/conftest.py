@@ -129,3 +129,10 @@ def pytest_generate_tests(metafunc):
             usernames = [os.environ.get("UTENTE", "standard_user")]
         print("Usernames parametrizzati:", usernames)
         metafunc.parametrize("username", usernames)
+
+# Per leggere username da un file CSV, decommenta le seguenti righe
+# import csv
+    # if metafunc.config.getoption("--all-usernames"):
+    #     with open("usernames.csv", newline="") as csvfile:
+    #         reader = csv.DictReader(csvfile)
+    #         usernames = [row["username"] for row in reader]

@@ -23,7 +23,7 @@ class ProductPage:
         self.driver.get(self.URL)
 
     #per verificare che utente sia sulla pagina dei prodotti
-    def wait_for_products_page_loaded(self, timeout=15):
+    def wait_for_products_page_loaded(self, timeout=10):
         try:
             self.wait = WebDriverWait(self.driver, timeout)
             self.wait.until(
