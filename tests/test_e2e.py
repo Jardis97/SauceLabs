@@ -23,9 +23,9 @@ def test_CorrectUser(browserInstance, product_page, username):  #con browserInst
         login_page.enter_username(username)
         login_page.enter_password("secret_sauce")
         login_page.click_login()
+        assert product_page.wait_for_products_page_loaded(), "La pagina prodotti non si è caricata"
         allure_screenshot(browserInstance, "Pagina Prodotti post login")
-        assert product_page.is_on_products_page(), "Pagina dei prodotti raggiunta dopo il login"
-        print("Login effettuato con successo con utenza corretta")
+        assert product_page.is_on_products_page()
 
 @pytest.mark.smoke
 @pytest.mark.products

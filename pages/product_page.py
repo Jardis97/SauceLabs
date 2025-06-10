@@ -22,6 +22,18 @@ class ProductPage:
     def open(self):
         self.driver.get(self.URL)
 
+    #per verificare che utente sia sulla pagina dei prodotti
+    def wait_for_products_page_loaded(self, timeout=15):
+        try:
+            self.wait = WebDriverWait(self.driver, timeout)
+            self.wait.until(
+                EC.visibility_of_element_located((By.CLASS_NAME, "inventory_container"))
+            )
+            return True
+        except TimeoutException:
+            logging.error("inventory_container non visibile entro il timeout.")
+            return False
+
     def is_on_products_page(self):
         return self.driver.current_url == self.URL
 
