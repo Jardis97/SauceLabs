@@ -95,7 +95,8 @@ def pytest_generate_tests(metafunc):
         if metafunc.config.getoption("--all-usernames"):
             usernames = [
                 "standard_user",
-                "performance_glitch_user"
+                "performance_glitch_user",
+                "locked_out_user"
             ]
         else:
             usernames = [os.environ.get("UTENTE", "standard_user")]
