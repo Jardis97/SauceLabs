@@ -21,7 +21,7 @@ def test_CorrectUser(browserInstance, product_page, username):  #con browserInst
         assert login_page.is_username_field_present()
         print(f"Username usato: {username}")
         login_page.enter_username(username)
-        login_page.enter_password("secret_sauce_errata")
+        login_page.enter_password("secret_sauce")
         login_page.click_login()
         assert product_page.wait_for_products_page_loaded(), "La pagina prodotti non si è caricata"
         allure_screenshot(browserInstance, "Pagina Prodotti post login")
