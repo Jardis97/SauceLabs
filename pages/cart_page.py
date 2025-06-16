@@ -6,13 +6,13 @@ import logging
 from selenium.webdriver.support.ui import WebDriverWait
 
 
-class CartPage:
+class CartPage: #locator come attributi classe
     URL = "https://www.saucedemo.com/cart.html"
     product_in_cart_name = (By.CSS_SELECTOR, '[data-test="inventory-item-name"]')
     checkout_button = (By.ID, "checkout")
 
 
-    def __init__(self, driver): #locator come attributi classe
+    def __init__(self, driver):
         self.driver = driver
         self.wait = WebDriverWait(driver, 10) #per non dover scrivere sempre webdriverwait e poter controllare timeout facilmente
 

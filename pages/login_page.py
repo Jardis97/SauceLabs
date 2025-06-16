@@ -6,14 +6,14 @@ import logging
 from selenium.webdriver.support.ui import WebDriverWait
 
 
-class LoginPage:
+class LoginPage: #locator come attributi classe perché non cambiano
     URL = "https://www.saucedemo.com/"
     username_field = (By.ID, "user-name")
     password_field = (By.ID, "password")
     login_button = (By.ID, "login-button")
     error_message = (By.CSS_SELECTOR, 'h3[data-test="error"]')
 
-    def __init__(self, driver): #locator come attributi classe
+    def __init__(self, driver):
         self.driver = driver
         self.wait = WebDriverWait(driver, 10) #per non dover scrivere sempre webdriverwait e poter controllare timeout facilmente
 

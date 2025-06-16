@@ -21,7 +21,7 @@ def test_CorrectUser(browserInstance, product_page, username):  #con browserInst
         assert login_page.is_username_field_present()
         print(f"Username usato: {username}")
         login_page.enter_username(username)
-        login_page.enter_password("secret_sauce")
+        login_page.enter_password("secret_sauce_errata")
         login_page.click_login()
         assert product_page.wait_for_products_page_loaded(), "La pagina prodotti non si è caricata"
         allure_screenshot(browserInstance, "Pagina Prodotti post login")
@@ -51,7 +51,7 @@ def test_add_product_to_cart(browserInstance, product_page):  #con logged_in_bro
     assert cart_page.is_on_cart_page()
     print("Pagina del carrello raggiunta")
     cart_page.is_product_in_cart("Sauce Labs Bike Light")
-    assert True
+    assert cart_page.is_product_in_cart("Sauce Labs Bike Light"), "ERRORE: Il prodotto 'Sauce Labs Bike Light' NON è stato trovato nel carrello come atteso!"
     print("OK: il prodotto e' presente anche nel carrello")
 
     cart_page.click_checkout_button()

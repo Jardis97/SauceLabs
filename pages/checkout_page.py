@@ -7,7 +7,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 import time
 
 
-class CheckoutPage:
+class CheckoutPage: #locator come attributi classe
     URL = "https://www.saucedemo.com/checkout-step-one.html"
     URL2= "https://www.saucedemo.com/checkout-step-two.html"
     first_name_field = (By.ID, "first-name")
@@ -19,7 +19,7 @@ class CheckoutPage:
     back_button = (By.ID, "back-to-products")
 
 
-    def __init__(self, driver): #locator come attributi classe
+    def __init__(self, driver):
         self.driver = driver
         self.wait = WebDriverWait(driver, 10) #per non dover scrivere sempre webdriverwait e poter controllare timeout facilmente
 

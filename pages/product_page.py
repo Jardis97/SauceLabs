@@ -7,7 +7,7 @@ import logging
 from selenium.webdriver.support.ui import WebDriverWait
 
 
-class ProductPage:
+class ProductPage: #locator come attributi classe
     URL = "https://www.saucedemo.com/inventory.html"
     login_button = (By.ID, "login-button")
     error_message = (By.CSS_SELECTOR, 'h3[data-test="error"]')
@@ -15,7 +15,7 @@ class ProductPage:
     cart_button = (By.ID, "shopping_cart_container")
     cart_count = (By.CSS_SELECTOR, '[data-test="shopping-cart-badge"]') #piu' robusto di class_name
 
-    def __init__(self, driver): #locator come attributi classe
+    def __init__(self, driver):
         self.driver = driver
         self.wait = WebDriverWait(driver, 10) #per non dover scrivere sempre webdriverwait e poter controllare timeout facilmente
 
@@ -37,7 +37,7 @@ class ProductPage:
     def is_on_products_page(self):
         return self.driver.current_url == self.URL
 
-    def get_add_to_cart_locator(self, product_name): #costruisco dinamicamente il locator
+    def get_add_to_cart_locator(self, product_name): #costruisco dinamicamente il locator, sauce labs usa lo stesso pattern per i vari id dei prodotti
         product_slug = product_name.lower().replace(" ", "-")
         return (By.ID, f"add-to-cart-{product_slug}")
 

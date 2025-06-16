@@ -13,7 +13,7 @@ from pages.cart_page import CartPage
 from pages.checkout_page import CheckoutPage
 import os #libreria per leggere variabili d'ambiente, per Jenkins
 
-@pytest.fixture
+@pytest.fixture  #per non dover ricreare manualmente l'istanza dentro il test "product_page = ProductPage(browserInstance)"
 def product_page(browserInstance):
     return ProductPage(browserInstance)
 
@@ -35,7 +35,7 @@ def allure_screenshot(driver, name):
 #fine screenshoot
 
 
-# Per risolvere questo problema, devi dire a `pytest` di accettare l'opzione `--browser_name` come argomento tramite l'uso di una funzione chiamata `pytest_addoption`.
+# Per risolvere problema, devi dire a `pytest` di accettare l'opzione `--browser_name` come argomento tramite l'uso di una funzione chiamata `pytest_addoption`.
 def pytest_addoption(parser):
     parser.addoption(
         "--browser_name",
