@@ -1,12 +1,14 @@
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
 import logging
+
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
+from pages.base_page import BasePage
 
-class LoginPage: #locator come attributi classe perché non cambiano
+
+class LoginPage(BasePage): #locator come attributi classe perché non cambiano
     URL = "https://www.saucedemo.com/"
     username_field = (By.ID, "user-name")
     password_field = (By.ID, "password")
@@ -14,8 +16,10 @@ class LoginPage: #locator come attributi classe perché non cambiano
     error_message = (By.CSS_SELECTOR, 'h3[data-test="error"]')
 
     def __init__(self, driver):
-        self.driver = driver
-        self.wait = WebDriverWait(driver, 10) #per non dover scrivere sempre webdriverwait e poter controllare timeout facilmente
+        # 3. Chiama il costruttore della classe genitore (BasePage)
+        # Questo inizializza self.driver e self.wait automaticamente!
+        super().__init__(driver)
+
 
     def open(self):
         self.driver.get(self.URL)
@@ -23,20 +27,18 @@ class LoginPage: #locator come attributi classe perché non cambiano
 
     def is_username_field_present(self):
         try:
-            return self.wait.until(EC.visibility_of_element_located(self.username_field)).is_displayed()
-            print("Campo username visibile")
+            self.wait.until(EC.visibility_of_element_located(self.username_field)).is_displayed()
+            return True
         except TimeoutException:
             logging.error("Il campo username non è visibile entro il timeout.") #logging per fare report nei log segnalando errore
             return False
-        except NoSuchElementException:
-            logging.error("Il campo username non è stato trovato.")
-            return False
 
-    def enter_username(self, username):
-        self.wait.until(EC.visibility_of_element_located(self.username_field)).send_keys(username)
+#Per inserire i dati del login
+    def login(self, username: str, password: str):
+        self._fill(self.username_field, username)
+        self._fill(self.password_field, password)
+        self._click(self.login_button)
 
-    def enter_password(self, password):
-        self.wait.until(EC.visibility_of_element_located(self.password_field)).send_keys(password)
 
     def click_login(self):
         self.wait.until(EC.element_to_be_clickable(self.login_button)).click()

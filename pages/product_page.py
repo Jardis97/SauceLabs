@@ -1,38 +1,33 @@
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.expected_conditions import element_to_be_clickable
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
-import logging
+from selenium.webdriver.support.expected_conditions import \
+    element_to_be_clickable
 from selenium.webdriver.support.ui import WebDriverWait
 
+from pages.base_page import BasePage
+from pages.cart_page import CartPage
 
-class ProductPage: #locator come attributi classe
+
+class ProductPage(BasePage): #locator come attributi classe
     URL = "https://www.saucedemo.com/inventory.html"
     login_button = (By.ID, "login-button")
     error_message = (By.CSS_SELECTOR, 'h3[data-test="error"]')
+    INVENTORY_CONTAINER = (By.CLASS_NAME, "inventory_container")
     add_to_cart = (By.ID, "add-to-cart-sauce-labs-backpack")
     cart_button = (By.ID, "shopping_cart_container")
     cart_count = (By.CSS_SELECTOR, '[data-test="shopping-cart-badge"]') #piu' robusto di class_name
 
     def __init__(self, driver):
-        self.driver = driver
-        self.wait = WebDriverWait(driver, 10) #per non dover scrivere sempre webdriverwait e poter controllare timeout facilmente
+        super().__init__(driver)
 
     def open(self):
         self.driver.get(self.URL)
 
     #per verificare che utente sia sulla pagina dei prodotti
-    def wait_for_products_page_loaded(self, timeout=10):
-        try:
-            self.wait = WebDriverWait(self.driver, timeout)
-            self.wait.until(
-                EC.visibility_of_element_located((By.CLASS_NAME, "inventory_container"))
-            )
-            return True
-        except TimeoutException:
-            logging.error("inventory_container non visibile entro il timeout.")
-            return False
+    #La logica di attesa è incapsulata nel metodo helper "_is_visible_" della BasePage.
+    def is_loaded(self):
+         return self._is_visible(self.INVENTORY_CONTAINER)
 
     def is_on_products_page(self):
         return self.driver.current_url == self.URL
@@ -43,32 +38,22 @@ class ProductPage: #locator come attributi classe
 
     def add_to_cart_by_product_name(self, product_name): #uso locator creato prima per cliccare prodotto
         locator = self.get_add_to_cart_locator(product_name)
-        self.driver.find_element(*locator).click()
+        self._click(locator)  #usiamo metodo _click definito in BasePage
 
     def get_cart_badge_count(self):
-        try:
-            badge = self.wait.until(
-                EC.visibility_of_element_located(self.cart_count)
-            )
-            self.cart_badge_value = badge.text #salva numero che comprare sul cartello
-            #return badge.text
-        except TimeoutException:
-            return None
+        return self._get_text(self.cart_count)
 
-    def click_cart_button(self):
-            try:
-                self.wait.until(EC.element_to_be_clickable(self.cart_button)).click()
-            except TimeoutException:
-                logging.error("Il pulsante del carrello non è cliccabile entro il timeout.")
-                return False
-            return True
-
+    def click_cart_button(self) -> CartPage:
+        self._click(self.cart_button)
+        return CartPage(self.driver)
 
     def is_cart_empty(self):
-        try:
-            badge = self.driver.find_element(*self.cart_count)
-            return badge.text == "" or badge.text == "0"
-        except NoSuchElementException:
-            return True  # Il badge non è presente
+        #riutilizzo get_cart_badge_count
+        return self.get_cart_badge_count() is None
+            # try:
+            #     badge = self.wait.until(*self.cart_count)
+            #     return badge.text == "" or badge.text == "0"
+            # except NoSuchElementException:
+            #     return True  # Il badge non è presente
 
 
