@@ -1,69 +1,84 @@
+# C:/Users/user/Downloads/Corso Automation/PythonProject/SauceLabs/pages/checkout_page.py
+
+# 1. Import di Terze Parti (solo quelli necessari!)
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
-import logging
-from selenium.webdriver.support.ui import WebDriverWait
-import time
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.support import expected_conditions as EC # <-- L'import che mancava!
+
+# 2. Import Locali
+from pages.base_page import BasePage
+
+# --- Pagina 1: Il Form di Checkout ---
+
+class CheckoutStepOnePage(BasePage):
+    """Rappresenta la pagina di checkout 'Step One', dove l'utente inserisce i dati."""
+    _URL = "https://www.saucedemo.com/checkout-step-one.html"
+    _FIRST_NAME_FIELD = (By.ID, "first-name")
+    _LAST_NAME_FIELD = (By.ID, "last-name")
+    _POSTAL_CODE_FIELD = (By.ID, "postal-code")
+    _CONTINUE_BUTTON = (By.ID, "continue")
+
+    def __init__(self, driver: WebDriver):
+        super().__init__(driver)
+
+    def is_on_checkout_page(self) -> bool:
+        """Verifica se il browser si trova sulla pagina di checkout (Step 1)."""
+        return self.driver.current_url == self._URL
+
+    def fill_checkout_form(self, first_name: str, last_name: str, postal_code: str):
+        """Compila i campi del form di checkout usando i metodi robusti di BasePage."""
+        self._fill(self._FIRST_NAME_FIELD, first_name)
+        self._fill(self._LAST_NAME_FIELD, last_name)
+        self._fill(self._POSTAL_CODE_FIELD, postal_code)
+
+    def click_continue_button(self) -> 'CheckoutStepTwoPage':
+        """Clicca sul pulsante 'Continue' e naviga alla pagina successiva."""
+        self._click(self._CONTINUE_BUTTON)
+        return CheckoutStepTwoPage(self.driver)
 
 
-class CheckoutPage: #locator come attributi classe
-    URL = "https://www.saucedemo.com/checkout-step-one.html"
-    URL2= "https://www.saucedemo.com/checkout-step-two.html"
-    first_name_field = (By.ID, "first-name")
-    last_name_field = (By.ID, "last-name")
-    postal_code_field = (By.ID, "postal-code")
-    continue_button = (By.ID, "continue")
-    finish_button = (By.ID, "finish")
-    URL_checkout_complete = "https://www.saucedemo.com/checkout-complete.html"
-    back_button = (By.ID, "back-to-products")
+# --- Pagina 2 (Overview): Il Riepilogo Ordine ---
+
+class CheckoutStepTwoPage(BasePage):
+    """Rappresenta la pagina di checkout 'Step Two', con il riepilogo dell'ordine."""
+    _URL = "https://www.saucedemo.com/checkout-step-two.html"
+    _FINISH_BUTTON = (By.ID, "finish")
+
+    def __init__(self, driver: WebDriver):
+        super().__init__(driver)
+
+    def is_on_checkout_step_two(self) -> bool:
+        """Verifica se il browser si trova sulla pagina di riepilogo (Step 2)."""
+        return self.driver.current_url == self._URL
+
+    def click_finish_button(self) -> 'CheckoutCompletePage':
+        """Clicca sul pulsante 'Finish' per completare l'ordine."""
+        self._click(self._FINISH_BUTTON)
+        return CheckoutCompletePage(self.driver)
 
 
-    def __init__(self, driver):
-        self.driver = driver
-        self.wait = WebDriverWait(driver, 10) #per non dover scrivere sempre webdriverwait e poter controllare timeout facilmente
+# --- Pagina 3  (Complete): Ordine Completato ---
 
-    def open(self):
-        self.driver.get(self.URL)
+class CheckoutCompletePage(BasePage):
+    """Rappresenta la pagina finale 'Checkout Complete'."""
+    _URL = "https://www.saucedemo.com/checkout-complete.html"
+    _BACK_HOME_BUTTON = (By.ID, "back-to-products")
+    _CONFIRMATION_HEADER = (By.CLASS_NAME, "complete-header")
 
-    def is_on_checkout_page(self):
-        return self.driver.current_url == self.URL
+    def __init__(self, driver: WebDriver):
+        super().__init__(driver)
 
+    def is_checkout_complete(self) -> bool:
+        """Verifica se il browser si trova sulla pagina di conferma ordine."""
+        return self.driver.current_url == self._URL
 
-    def compile_checkout(self, first_name, last_name, postal_code):
-        try:
-            self.wait.until(EC.visibility_of_element_located(self.first_name_field)).send_keys(first_name)
-            self.wait.until(EC.visibility_of_element_located(self.last_name_field)).send_keys(last_name)
-            self.wait.until(EC.visibility_of_element_located(self.postal_code_field)).send_keys(postal_code)
-            self.wait.until(EC.element_to_be_clickable(self.continue_button)).click()
-        except Exception as e:
-            logging.error(f"Errore durante la compilazione del checkout: {e}")
-            return False
+    def get_confirmation_message(self) -> str:
+        """Restituisce il messaggio di conferma dell'ordine."""
+        return self._get_text(self._CONFIRMATION_HEADER) # Usa il metodo di BasePage
 
-    def is_on_checkout_step_two(self):
-        return self.driver.current_url == self.URL2
-
-    def finish_checkout(self):
-        try:
-            self.wait.until(EC.element_to_be_clickable(self.finish_button)).click()
-            print("Finalizzazione checkout completata con successo.")
-        except TimeoutException:
-            logging.error("Il pulsante di completamento non è cliccabile entro il timeout.")
-            return False
-
-    def is_checkout_complete(self):
-        return self.driver.current_url == self.URL_checkout_complete
-
-
-    def back_toProducts(self):
-        try:
-            self.wait.until(EC.element_to_be_clickable(self.back_button)).click()
-            print("Ritorno alla pagina prodotti.")
-        except TimeoutException:
-            logging.error("Il pulsante di ritorno non è cliccabile entro il timeout.")
-            return False
-
-
-
-
-
+    def click_back_home_button(self):
+        """Clicca sul pulsante per tornare alla pagina dei prodotti."""
+        self._click(self._BACK_HOME_BUTTON)
+        # Se necessario, potresti restituire un'istanza di ProductPage
+        # from pages.product_page import ProductPage
+        # return ProductPage(self.driver)
