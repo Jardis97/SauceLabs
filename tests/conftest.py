@@ -1,3 +1,8 @@
+
+# 1. FORWARD REFERENCES E TYPE_CHECKING
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import logging
 import os  # libreria per leggere variabili d'ambiente, per Jenkins
 import time
@@ -11,31 +16,40 @@ from selenium.webdriver.chrome.options import Options as ChromeOptions
 #chrome driver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
-
 from pages.base_page import BasePage
-from pages.cart_page import CartPage
-from pages.checkout_page import CheckoutStepOnePage
-from pages.login_page import LoginPage
-from pages.product_page import ProductPage
+
+
+# 2
+#    blocco visibile solo agli analizzatori di tipo (PyCharm, MyPy)
+#    e previene qualsiasi errore di importazione circolare a runtime.
+if TYPE_CHECKING:
+    from pages.cart_page import CartPage
+    from pages.checkout_page import (
+        CheckoutCompletePage,
+        CheckoutStepOnePage,
+        CheckoutStepTwoPage,
+    )
+    from pages.login_page import LoginPage
+    from pages.product_page import ProductPage
 
 
 
 #non usare perché troppo lunga oi dipendenze
 @pytest.fixture  #per non dover ricreare manualmente l'istanza dentro il test "product_page = ProductPage(browserInstance)"
-def product_page(browserInstance):
+def product_page(browserInstance) -> "ProductPage":
+    from pages.product_page import ProductPage
     return ProductPage(browserInstance)
 
 @pytest.fixture
-def login_page(browserInstance):
+def login_page(browserInstance) -> "LoginPage":
+    from pages.login_page import LoginPage
     return LoginPage(browserInstance)
 
 @pytest.fixture
-def cart_page(browserInstance):
+def cart_page(browserInstance) -> "CartPage":
+    from pages.cart_page import CartPage
     return CartPage(browserInstance)
 
-@pytest.fixture
-def checkout_page(browserInstance):
-    return CheckoutPage(browserInstance)
 
 #Def per fare screenshot in qualsiasi test
 def allure_screenshot(driver, name):
@@ -116,6 +130,9 @@ def browserInstance(request): #request prende ciò che gli metto nella linea di 
     yield driver #qui finisce il setup iniziato in riga 19 con pytest.fixture
     driver.quit() #teardown
 
+
+#---------- FIXTURE DI STATO -------------------
+
 @pytest.fixture(scope="function")
 def standard_user_logged_in(browserInstance, login_page, product_page):
     """
@@ -168,7 +185,7 @@ def products_page_with_item_in_cart(standard_user_logged_in, product_page):
 
 #Utente naviga al carrello dalla pagina prodotto
 @pytest.fixture(scope="function")
-def cart_page_with_one_item(products_page_with_item_in_cart) -> Tuple[CartPage, str]: #hint perchè restituisce CartPage e stringa/prod added
+def cart_page_with_one_item(products_page_with_item_in_cart) -> Tuple["CartPage", str]: #hint perchè restituisce CartPage e stringa/prod added
     # ricevo pacchetto da yield della fixture e lo spacchetto in due variabili
     product_page_instance, product_added = products_page_with_item_in_cart
     # Navighiamo al carrello
@@ -181,7 +198,7 @@ def cart_page_with_one_item(products_page_with_item_in_cart) -> Tuple[CartPage, 
     logging.info("[Fixture Teardown] Test che usava 'cart_with_one_item' completato.")
 
 @pytest.fixture(scope="function")
-def checkout_step_one_page_with_item(cart_page_with_one_item) -> CheckoutStepOnePage: #-> è una hint/suggerimento per l'IDE per dirgli cosa restituirà la fixture
+def checkout_step_one_page_with_item(cart_page_with_one_item) -> "CheckoutStepOnePage": #-> è una hint/suggerimento per l'IDE per dirgli cosa restituirà la fixture
     cart_page_instance, _ = cart_page_with_one_item #con _ mi scarto il product added
     checkout_page_instance = cart_page_instance.click_checkout_button()
     assert checkout_page_instance.is_on_checkout_page(), \
@@ -190,6 +207,29 @@ def checkout_step_one_page_with_item(cart_page_with_one_item) -> CheckoutStepOne
     yield checkout_page_instance
     # 6. Teardown
     logging.info("[Fixture Teardown] Test sul form di checkout completato.")
+
+@pytest.fixture(scope="function")
+def checkout_step_two_page_with_summary(checkout_step_one_page_with_item: CheckoutStepOnePage) -> "CheckoutStepTwoPage":
+    checkout_page_instance = checkout_step_one_page_with_item  # spacchetto ciò che ritorna dalla fixture
+    checkout_page_instance.fill_checkout_form("Claudio", "Ramo", "12345")
+    checkout_step_two_page = checkout_page_instance.click_continue_button()  # assegno il return ad una nuova variabile per controllare le sue funzioni
+    assert checkout_step_two_page.is_on_checkout_step_two(), "Setup fixture fallito: non siamo su pagina riepilogo"
+    logging.info("[Fixture Setup], Verifica riuscita, siamo sulla pagina riepologo")
+    yield checkout_step_two_page
+    #Teardown
+    logging.info("[Fixture Teardown] Test sul form di checkout step 2 completato.")
+
+
+@pytest.fixture(scope="function")
+def checkout_complete_page_with_order_placed(checkout_step_two_page_with_summary: CheckoutStepTwoPage) -> "CheckoutCompletePage":
+    checkout_step_two_page_instance = checkout_step_two_page_with_summary #spacchetto
+    checkout_complete_page = checkout_step_two_page_instance.click_finish_button()
+    assert checkout_complete_page.is_checkout_complete(), "Setup fixture fallito: non siamo su pagina conferma ordine"
+    logging.info("[Fixture Setup], Verifica riuscita, siamo sulla pagina del checkout con summary")
+    yield checkout_complete_page
+    #Teardown
+    logging.info("[Fixture Teardown] Test sul form di checkout con summary completato.")
+
 
 
 

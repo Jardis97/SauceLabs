@@ -25,6 +25,19 @@ class BasePage:
         """Trova un elemento attendendo che sia presente."""
         return self.wait.until(EC.presence_of_element_located(locator))
 
+    def _find(self, locator: tuple, timeout: int = None):
+        """
+        Trova un elemento, usando un timeout personalizzato se fornito.
+        Se non fornito, usa il wait di default della classe.
+        """
+        # Se non passo un timeout, usa quello di default (10s)
+        wait_instance = self.wait if timeout is None else WebDriverWait(self.driver, timeout)
+        try:
+            return wait_instance.until(EC.visibility_of_element_located(locator))
+        except TimeoutException:
+            # Rilancia l'eccezione per essere gestita dal chiamante
+            raise
+
 
     def _get_current_url(self):
         """Restituisce l'URL corrente del browser."""

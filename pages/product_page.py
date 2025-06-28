@@ -1,3 +1,6 @@
+from __future__ import annotations #permette di usare typehint senza far bloccare python in run
+from typing import TYPE_CHECKING
+
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
@@ -6,7 +9,8 @@ from selenium.webdriver.support.expected_conditions import \
 from selenium.webdriver.support.ui import WebDriverWait
 
 from pages.base_page import BasePage
-from pages.cart_page import CartPage
+if TYPE_CHECKING:
+    from pages.cart_page import CartPage
 
 
 class ProductPage(BasePage): #locator come attributi classe
@@ -32,11 +36,12 @@ class ProductPage(BasePage): #locator come attributi classe
     def is_on_products_page(self):
         return self.driver.current_url == self.URL
 
-    def get_add_to_cart_locator(self, product_name): #costruisco dinamicamente il locator, sauce labs usa lo stesso pattern per i vari id dei prodotti
+    def get_add_to_cart_locator(self, product_name) -> tuple[str, str]: #tupla con due stringhe per id e product_slug
+        #costruisco dinamicamente il locator, sauce labs usa lo stesso pattern per i vari id dei prodotti
         product_slug = product_name.lower().replace(" ", "-")
         return (By.ID, f"add-to-cart-{product_slug}")
 
-    def add_to_cart_by_product_name(self, product_name): #uso locator creato prima per cliccare prodotto
+    def add_to_cart_by_product_name(self, product_name) -> None: #uso locator creato prima per cliccare prodotto
         locator = self.get_add_to_cart_locator(product_name)
         self._click(locator)  #usiamo metodo _click definito in BasePage
 
@@ -45,15 +50,22 @@ class ProductPage(BasePage): #locator come attributi classe
 
     def click_cart_button(self) -> CartPage:
         self._click(self.cart_button)
+        from pages.cart_page import CartPage
         return CartPage(self.driver)
 
-    def is_cart_empty(self):
-        #riutilizzo get_cart_badge_count
-        return self.get_cart_badge_count() is None
-            # try:
-            #     badge = self.wait.until(*self.cart_count)
-            #     return badge.text == "" or badge.text == "0"
-            # except NoSuchElementException:
-            #     return True  # Il badge non è presente
+
+    def is_cart_empty(self) -> bool: #restituisce sembre una booleana
+        """
+        Verifica se il carrello è vuoto controllando l'ASSENZA del badge.
+        Usa un timeout molto basso per essere quasi istantaneo.
+        """
+        try:
+            # Chiama _find con un timeout esplicito e molto breve
+            self._find(self.cart_count, timeout=0.5)
+            # Se l'elemento viene trovato, il carrello NON è vuoto
+            return False
+        except (TimeoutException, NoSuchElementException):
+            # Se _find fallisce (come ci aspettiamo), il carrello È vuoto
+            return True
 
 

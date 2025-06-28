@@ -7,9 +7,25 @@ from selenium.webdriver.support import expected_conditions as EC # <-- L'import 
 
 # 2. Import Locali
 from pages.base_page import BasePage
+from pages.product_page import ProductPage
+
+
+# --- Classe Base per il Flusso di Checkout ---
+class BaseCheckoutPage(BasePage):
+    """
+    Classe base per le pagine del flusso di checkout che condividono elementi comuni.
+    """
+    _CANCEL_BUTTON = (By.ID, "cancel") # Il localizzatore comune
+
+    def click_cancel_button(self) -> ProductPage:
+        """
+        Clicca sul pulsante 'Cancel' e torna alla pagina dei prodotti.
+        """
+        self._click(self._CANCEL_BUTTON)
+        return ProductPage(self.driver) # Pulsante "Cancel" torna alla ProductPage
+
 
 # --- Pagina 1: Il Form di Checkout ---
-
 class CheckoutStepOnePage(BasePage):
     """Rappresenta la pagina di checkout 'Step One', dove l'utente inserisce i dati."""
     _URL = "https://www.saucedemo.com/checkout-step-one.html"
@@ -79,6 +95,4 @@ class CheckoutCompletePage(BasePage):
     def click_back_home_button(self):
         """Clicca sul pulsante per tornare alla pagina dei prodotti."""
         self._click(self._BACK_HOME_BUTTON)
-        # Se necessario, potresti restituire un'istanza di ProductPage
-        # from pages.product_page import ProductPage
-        # return ProductPage(self.driver)
+        return ProductPage(self.driver)

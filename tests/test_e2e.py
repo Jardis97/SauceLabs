@@ -2,6 +2,9 @@ import logging
 import allure
 import pytest
 
+from pages.checkout_page import CheckoutStepOnePage
+from pages.product_page import ProductPage
+
 logging.basicConfig(level=logging.ERROR)
 import os  # per far leggere a jenkins il parametro che useremo per username
 
@@ -45,9 +48,10 @@ def test_cart_content_is_correct(cart_page_with_one_item):
 @allure.feature("Checkout")
 @allure.story("Checkout completo")
 @allure.severity(allure.severity_level.CRITICAL)
-def test_checkout_form_is_filled(checkout_step_one_page_with_item):
-    checkout_page_instance = checkout_step_one_page_with_item #spacchetto ciò che ritorna dalla fixture
-    checkout_page_instance.fill_checkout_form("Claudio", "Ramo", "12345")
+def test_full_checkout_process(checkout_complete_page_with_order_placed: "CheckoutCompletePage"): #la parte finale è il type hint/suggerimento
+    checkout_complete_page = checkout_complete_page_with_order_placed #spacchetto ciò che ritorna dalla fixture
+    assert checkout_complete_page.get_confirmation_message(), "Conferma non avvenuta"
+    logging.info("Verifica della pagina di conferma ordine superata con successo.")
 
 
 @pytest.mark.smoke
@@ -55,14 +59,14 @@ def test_checkout_form_is_filled(checkout_step_one_page_with_item):
 @allure.feature("Home Reset")
 @allure.story("Post Checkout torna alla Home con cart vuoto")
 @allure.severity(allure.severity_level.CRITICAL)
-def test_homeReset(browserInstance, product_page, cart_page, checkout_page):
-    # Ora torno pagina prodotto e verifico che carrello sia vuoto
-    checkout_page.back_toProducts()
-    allure_screenshot(browserInstance, "RItorno pagina prodotti")
-    assert product_page.is_on_products_page()
-    print("Ritorno alla pagina dei prodotti effettuato con successo")
-    #verifico che il badge del carrello sia vuoto
-    assert product_page.is_cart_empty(), "il cartello è vuoto ritornando alla home page"
+def test_back_home_button_reset_application(checkout_complete_page_with_order_placed: "CheckoutCompletePage"):
+    checkout_complete_page = checkout_complete_page_with_order_placed #spacchetto ciò che ritorna dalla fixture
+    product_page_instance = checkout_complete_page.click_back_home_button()
+    #Vefico che il bottone mi porti alla pagina dei prodotti
+    assert product_page_instance.is_on_products_page(), "Non siamo sulla pagina dei prodotti dopo il reset"
+    #Verifico che il badge del carrello sia vuoto
+    assert product_page_instance.is_cart_empty(), "Il carrello non è vuoto dopo il reset"
+
 
 
 
