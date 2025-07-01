@@ -1,0 +1,14 @@
+    # C:/.../docker-compose.debug.yml
+    services:
+      test-runner:
+        # Sovrascrive il comando per tenere il container sempre attivo per vnc viwer
+        command: tail -f /dev/null
+    
+      chrome:
+        # Sovrascrive l'immagine con quella di debug
+        image: selenium/standalone-chrome-debug:latest
+        ports:
+          # Aggiunge la porta VNC
+          - "4444:4444"
+          - "7900:7900" #porta per visualizzare browser
+    

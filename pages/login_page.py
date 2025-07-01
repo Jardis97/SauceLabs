@@ -9,11 +9,11 @@ from pages.base_page import BasePage
 
 
 class LoginPage(BasePage): #locator come attributi classe perché non cambiano
-    URL = "https://www.saucedemo.com/"
+    #URL = "https://www.saucedemo.com/" --> ora è nel file .env
     username_field = (By.ID, "user-name")
     password_field = (By.ID, "password")
     login_button = (By.ID, "login-button")
-    error_message = (By.CSS_SELECTOR, 'h3[data-test="error"]')
+    _error_message_locator = (By.CSS_SELECTOR, 'h3[data-test="error"]')
 
     def __init__(self, driver):
         # 3. Chiama il costruttore della classe genitore (BasePage)
@@ -21,8 +21,9 @@ class LoginPage(BasePage): #locator come attributi classe perché non cambiano
         super().__init__(driver)
 
 
-    def open(self):
-        self.driver.get(self.URL)
+    def open(self, base_url: str):
+        self.driver.get(f"{base_url}")
+        return self
 
 
     def is_username_field_present(self):
@@ -43,5 +44,18 @@ class LoginPage(BasePage): #locator come attributi classe perché non cambiano
     def click_login(self):
         self.wait.until(EC.element_to_be_clickable(self.login_button)).click()
 
-    def get_error_message(self):
-        return self.wait.until(EC.visibility_of_element_located(self.error_message)).text
+    def get_error_message(self) -> str:
+        """
+        Cerca il messaggio di errore e ne restituisce il testo.
+        Restituisce None se l'elemento non viene trovato entro il timeout,
+        evitando di far crashare il test.
+        """
+        try:
+            # Attende che l'elemento sia visibile e ne restituisce il testo
+            error_element = self.wait.until(EC.visibility_of_element_located(self._error_message_locator))
+            return error_element.text
+        except TimeoutException:
+            # Se l'elemento non appare, logga un avviso e restituisce None.
+            # Questo permette al test di gestire il caso in cui l'errore non appare.
+            logging.warning("Elemento del messaggio di errore non trovato sulla pagina.")
+            return None

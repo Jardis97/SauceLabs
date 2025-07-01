@@ -1,23 +1,22 @@
 
 # 1. FORWARD REFERENCES E TYPE_CHECKING
 from __future__ import annotations
-from typing import TYPE_CHECKING
 
+import csv
 import logging
 import os  # libreria per leggere variabili d'ambiente, per Jenkins
-import time
+from typing import Generator
+from typing import TYPE_CHECKING
 from typing import Tuple  # lo uso per gli hint
 
 import allure
 import pytest
-from appium.webdriver import webdriver
+from dotenv import load_dotenv  # aggiungo per far leggere i dati dal file .env
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
-#chrome driver
-from selenium.webdriver.chrome.service import Service
+# chrome driver
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
-from pages.base_page import BasePage
-
+from selenium.webdriver.remote.webdriver import WebDriver
 
 # 2
 #    blocco visibile solo agli analizzatori di tipo (PyCharm, MyPy)
@@ -60,17 +59,50 @@ def allure_screenshot(driver, name):
     )
 #fine screenshoot
 
+#Hook per fare screenshot allure ad ogni fallimento del test
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """
+    Hook di Pytest che viene eseguito dopo ogni fase di un test (setup, call, teardown).
+    Viene usato per catturare lo screenshot in caso di fallimento.
+    """
+    # Esegui tutti gli altri hook per ottenere un oggetto "report"
+    outcome = yield
+    report = outcome.get_result()
+
+    # Ci interessa solo il fallimento nella fase di "call" (l'esecuzione del test vero e proprio)
+    if report.when == "call" and report.failed:
+        logging.error(f"Test fallito: {item.name}. Catturo lo screenshot.")
+
+        # Cerca la fixture 'browserInstance' tra quelle usate dal test fallito.
+        # Questo è il modo "magico" per accedere a una fixture dall'interno di un hook.
+        if "browserInstance" in item.fixturenames:
+            driver = item.funcargs["browserInstance"]
+
+            # Allega lo screenshot al report di Allure
+            allure.attach(
+                driver.get_screenshot_as_png(),
+                name=f"screenshot_failure_{item.name}",
+                attachment_type=allure.attachment_type.PNG,
+            )
+
+            # Allega il sorgente della pagina (HTML)
+            allure.attach(
+                driver.page_source,
+                name=f"pagesource_failure_{item.name}",
+                attachment_type=allure.attachment_type.HTML,
+            )
 
 # Per risolvere problema, devi dire a `pytest` di accettare l'opzione `--browser_name` come argomento tramite l'uso di una funzione chiamata `pytest_addoption`.
 def pytest_addoption(parser):
+    # Aggiungiamo l'opzione per scegliere l'ambiente
     parser.addoption(
-        "--browser_name",
-        action="store",
-        default="chrome",
-        help="browser selection"
+        "--env", action="store", default="sit", help="Ambiente da testare (es: sit, uat)"
     )
+    # per lanciare docker in remote
+    parser.addoption("--browser", action="store", default="chrome", help="Browser: chrome, firefox, o remote per docker/selenium grid")
     parser.addoption(
-        "--window_size",
+        "--resolution",
         action="store",
         default="1280,800",
         help="dimensione finestra browser (es: 1280,800 o 375,812)"
@@ -81,99 +113,189 @@ def pytest_addoption(parser):
         "--all-usernames", action="store_true", default=False, help="Esegui test con tutti gli username"
     )
 
-@pytest.fixture(scope="function") #scope="function" si distrugge ad ogni test, module/session no
-def browserInstance(request): #request prende ciò che gli metto nella linea di comando (es. firefox o chrome) per capire quale browser avviare
-    browser_name = request.config.getoption("browser_name", default="chrome") #quando nel terminale gli metto la linea di comando "pytest test_nomefile.py --browser_name firefox, lui si prende il nome di quest'ultima per capire quale browser usare
-    window_size = os.environ.get("RESOLUTION") or request.config.getoption("window_size") #jenkins opzione 1, riga di comando opzione 2 - se non specifico prende default ciò che c'è in adoption
-    width, height = map(int, window_size.replace("x", ",").split(",")) #trasforma stringa in res
-    service_obj = Service() #crea oggetto per il servizio del browser, chromedriver, geckodriver, ecc.
+#------------FIXTURE PER CARICARE L'AMBIENTE (autouse=True la esegue automaticamente)
+@pytest.fixture(scope="session", autouse=True)
+def load_env(request):
+    """
+    Carica le variabili d'ambiente dal file .env corretto prima dell'inizio dei test.
+    """
+    env = request.config.getoption("--env")
+    env_file = os.path.join(os.path.dirname(__file__), '..', f'.env.{env}') # Cerca il file nella root del progetto
+    if os.path.exists(env_file):
+        load_dotenv(dotenv_path=env_file, override=True)
+        logging.info(f"Caricato file di configurazione per l'ambiente: {env_file}")
+    else:
+        pytest.fail(f"File di configurazione '{env_file}' non trovato. Assicurati che esista.")
 
-    # Se in parallelo, usa Sauce Labs
-    if (
-        os.environ.get("PYTEST_XDIST_WORKER")
+
+# 3. CREA FIXTURE PER FORNIRE I DATI AI TEST
+#    Queste fixture leggono i valori caricati e li passano ai test.
+#    Questo disaccoppia i test dalla conoscenza di 'os.environ'.
+
+@pytest.fixture(scope="session")
+def base_url() -> str:
+    """Restituisce l'URL base per l'ambiente selezionato."""
+    url = os.environ.get("BASE_URL")
+    if not url:
+        pytest.fail("La variabile BASE_URL non è definita nel file .env")
+    return url
+
+@pytest.fixture(scope="session")
+def standard_user_credentials() -> Tuple[str, str]:
+    """Restituisce le credenziali (username, password) per l'utente standard."""
+    username = os.environ.get("STANDARD_USER_USERNAME")
+    password = os.environ.get("STANDARD_USER_PASSWORD")
+    if not username or not password:
+        pytest.fail("Le credenziali per l'utente standard non sono definite nel file .env")
+    return username, password
+
+@pytest.fixture(scope="session")
+def locked_user_credentials() -> Tuple[str, str]:
+    """Restituisce le credenziali (username, password) per l'utente standard."""
+    username = os.environ.get("LOCKED_USER_USERNAME")
+    password = os.environ.get("LOCKED_USER_PASSWORD")
+    if not username or not password:
+        pytest.fail("Le credenziali per l'utente LOCKED non sono definite nel file .env")
+    return username, password
+
+#-----FINE fitxute per caricare variabili da file .env
+
+
+
+#FIXTURE PER caricare multipli dati da un file .csv
+def load_user_data_from_csv():
+    """Legge i dati degli utenti dal file CSV e li restituisce come lista di tuple.
+    Ignora le righe vuote e giestisce le righe con numero errato di colonne"""
+
+    user_data = []
+    csv_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'test_users.csv')
+
+    with open(csv_path, mode='r', encoding='utf-8') as csvfile:
+        reader = csv.reader(csvfile)
+        header = next(reader)  # Leggi l'intestazione
+        expected_columns = len(header)
+
+        for i, row in enumerate(reader, start=2):  # start=2 per contare la riga header
+            # 1. Ignora le righe completamente vuote
+            if not row:
+                continue
+
+            # 2. Controlla che il numero di colonne sia corretto
+            if len(row) != expected_columns:
+                print(
+                    f"\nATTENZIONE: La riga {i} nel file CSV ha {len(row)} colonne, "
+                    f"ma ne erano attese {expected_columns}. La riga verrà saltata."
+                    f"\nDati della riga: {row}"
+                )
+                continue
+
+            user_data.append(tuple(row))
+
+    return user_data
+
+@pytest.fixture(scope="function") #scope="function" si distrugge ad ogni test, module/session no
+def browserInstance(request: pytest.FixtureRequest) -> Generator[WebDriver, None, None]: #restituisce yield, generator indica quello
+    """
+    Crea, configura e distrugge l'istanza del browser per ogni test.
+    Supporta tre modalità:
+    1. remote: Si connette a un Selenium Grid (in Docker).
+    2. cloud (Sauce Labs): Si connette a Sauce Labs se rileva un'esecuzione parallela.
+    3. local: Esegue Chrome o Firefox sulla macchina locale.
+    """
+    # Usa la nuova opzione unificata
+    browser_name = request.config.getoption("--browser")
+    resolution = os.environ.get("RESOLUTION") or request.config.getoption("resolution")
+    width, height = map(int, resolution.split(","))
+
+    # Controlla se siamo in un'esecuzione parallela su Sauce Labs
+    is_sauce_run = (
+        "PYTEST_XDIST_WORKER" in os.environ
         and os.environ.get("SAUCE_USERNAME")
         and os.environ.get("SAUCE_ACCESS_KEY")
-    ):
+    )
+
+    driver: WebDriver #webdriver per docker/seleniumgrid, sauce labs o locale
+
+    if browser_name == "remote":
+        # --- 1. ESECUZIONE REMOTA (DOCKER) ---
+        logging.info("Modalità remota: connessione a Selenium Grid (Docker)...")
+        # 'chrome' è il nome del servizio nel file docker-compose.yml
+        # Docker lo risolverà con l'IP corretto del container.
+        selenium_hub_url = "http://chrome:4444/wd/hub"
+        options = ChromeOptions() # Per ora supportiamo solo Chrome in remote
+        driver = webdriver.Remote(command_executor=selenium_hub_url, options=options)
+
+    elif is_sauce_run:
+        # --- 2. ESECUZIONE SU CLOUD (SAUCE LABS) ---
+        logging.info(f"Modalità cloud: connessione a Sauce Labs con {browser_name}...")
         sauce_url = (
             f"https://{os.environ['SAUCE_USERNAME']}:{os.environ['SAUCE_ACCESS_KEY']}"
             "@ondemand.eu-central-1.saucelabs.com:443/wd/hub"
         )
         if browser_name == "chrome":
             options = ChromeOptions()
-            options.add_argument("--incognito") #incognito anche su saucelabs
         elif browser_name == "firefox":
             options = FirefoxOptions()
         else:
-            raise ValueError(f"Browser non supportato: {browser_name}")
+            raise ValueError(f"Browser non supportato su Sauce Labs: {browser_name}")
 
-        options.set_capability("browserName", browser_name)
-        options.set_capability("platformName", "Windows 10")
-        options.set_capability("sauce:options", {})
+        options.platform_name = "Windows 10"
+        options.browser_version = "latest"
+        sauce_options = {'name': request.node.name}
+        options.set_capability('sauce:options', sauce_options)
         driver = webdriver.Remote(command_executor=sauce_url, options=options)
-        driver.set_window_size(width, height)
-    else:
-        if browser_name == "chrome":
-            chrome_options = ChromeOptions()
-            chrome_options.add_argument("--disable-notifications")
-            chrome_options.add_argument("--incognito")
-            # chrome_options.add_argument("--headless=new")
-            driver = webdriver.Chrome(service=service_obj, options=chrome_options)
-            driver.set_window_size(width, height)
-            #driver.implicitly_wait(1)
-        elif browser_name == "firefox":
-            driver = webdriver.Firefox(service=service_obj)
-            driver.set_window_size(width, height)
-            #driver.implicitly_wait(4)
-        else:
-            raise ValueError(f"Browser non supportato: {browser_name}")
 
-    yield driver #qui finisce il setup iniziato in riga 19 con pytest.fixture
-    driver.quit() #teardown
+    else:
+        # --- 3. ESECUZIONE LOCALE ---
+        logging.info(f"Modalità locale: avvio di {browser_name}...")
+        if browser_name == "chrome":
+            options = ChromeOptions()
+            options.add_argument("--incognito")
+            options.add_argument("--disable-notifications")
+            # Non è necessario specificare il 'service'. Selenium Manager lo gestisce.
+            driver = webdriver.Chrome(options=options)
+        elif browser_name == "firefox":
+            options = FirefoxOptions()
+            options.add_argument("-private")
+            driver = webdriver.Firefox(options=options)
+        else:
+            raise ValueError(f"Browser non supportato localmente: {browser_name}")
+
+    driver.set_window_size(width, height)
+    yield driver  # Il test viene eseguito qui
+
+    # Teardown: viene eseguito dopo che il test è terminato
+    driver.quit()
 
 
 #---------- FIXTURE DI STATO -------------------
 
 @pytest.fixture(scope="function")
-def standard_user_logged_in(browserInstance, login_page, product_page):
+def standard_user_logged_in(login_page, product_page, base_url, standard_user_credentials):
     """
     Fixture di base che esegue il login SOLO con l'utente standard.
     NON è parametrizzata e può essere usata in qualsiasi test
     che ha bisogno di un utente loggato come pre-requisito.
     """
-    # Per ora, l'utente è "hardcoded". In futuro lo sarà da un file .env
-    username = "standard_user"
-    password = "secret_sauce"
+    username, password = standard_user_credentials
     logging.info(f"[Fixture Setup] Eseguo login standard con utente: {username}")
-    login_page.open()
+    login_page.open(base_url)
     login_page.login(username, password)
     # Auto-verifica: la fixture controlla di aver fatto bene il suo lavoro
     assert product_page.is_on_products_page(), "Setup del login standard fallito."
     logging.info("[Fixture Setup] Login standard riuscito. Pronto per il test.")
-    yield browserInstance
-
-#Per richiamarmi il login corretto
-#Fixture per partire da stato in cui utente ha fatto login
-@pytest.fixture(scope="function")
-def logged_in_browser(browserInstance, login_page, product_page, username):
-    # --- SETUP ---
-    logging.info(f"[Fixture Setup] Inizio preparazione per 'logged_in_browser' con utente: {username}")
-    login_page.open()
-    logging.info(f"[Fixture Setup] Eseguo il login per l'utente: {username}")
-    login_page.login(username, "secret_sauce")
-    # ASSERT
-    assert product_page.is_on_products_page(), "Setup della fixture 'logged_in_browser' fallito: il login non è riuscito."
-    logging.info(f"[Fixture Setup] Login per '{username}' riuscito. Pronto per il test.")
-    # --- YIELD: Passa il controllo al test ---
-    yield browserInstance
+    yield product_page #restituisco pagina con product page
     # --- TEARDOWN (eseguito dopo il test) ---
-    logging.info(f"[Fixture Teardown] Test che usava 'logged_in_browser' per l'utente '{username}' completato.")
+    logging.info(f"[Fixture Teardown] Test che usava standard_user_logged_in per l'utente '{username}' completato.")
+
+
 
 #Fixture per partire da stato in cui utente ha aggiunto 1 prodotto al carrello
 @pytest.fixture(scope="function")
-def products_page_with_item_in_cart(standard_user_logged_in, product_page):
+def products_page_with_item_in_cart(standard_user_logged_in: "ProductPage"):
    # 'product_page' è la richiesta alla fixture "fabbrica".
     # 'product_page_instance' è la variabile che usiamo per agire.
-    product_page_instance = product_page
+    product_page_instance = standard_user_logged_in
     # Aggiungiamo prodotto al carrello
     product_added = "Sauce Labs Bike Light"
     product_page_instance.add_to_cart_by_product_name(product_added)
@@ -230,27 +352,3 @@ def checkout_complete_page_with_order_placed(checkout_step_two_page_with_summary
     #Teardown
     logging.info("[Fixture Teardown] Test sul form di checkout con summary completato.")
 
-
-
-
-
-#parametrizzo test login per username, genera test separati
-def pytest_generate_tests(metafunc):
-    if "username" in metafunc.fixturenames:
-        if metafunc.config.getoption("--all-usernames"):
-            usernames = [
-                "standard_user",
-                "performance_glitch_user",
-                "locked_out_user"
-            ]
-        else:
-            usernames = [os.environ.get("UTENTE", "standard_user")]
-        print("Usernames parametrizzati:", usernames)
-        metafunc.parametrize("username", usernames)
-
-# Per leggere username da un file CSV, decommenta le seguenti righe
-# import csv
-    # if metafunc.config.getoption("--all-usernames"):
-    #     with open("usernames.csv", newline="") as csvfile:
-    #         reader = csv.DictReader(csvfile)
-    #         usernames = [row["username"] for row in reader]

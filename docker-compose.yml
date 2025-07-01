@@ -1,0 +1,21 @@
+services:
+  # Il nostro container con il codice di test
+  test-runner:
+    build: .  # Costruisci l'immagine usando il Dockerfile nella cartella corrente
+    env_file:
+      - .env.sit  # Inietta le variabili d'ambiente dal file .env.sit
+    volumes:
+      # Monta la cartella dei risultati di Allure per poterli vedere sull'host
+      - ./allure-results:/app/allure-results
+    command: ["sh", "./run_tests.sh"] #i comandi li trovo nel file .sh
+
+    depends_on:
+      - chrome # Attendi che il container del browser sia pronto prima di iniziare
+
+  # Il container del browser
+  chrome:
+    image: selenium/standalone-chrome:124.0-20250606 # Usa l'immagine ufficiale di Selenium
+    shm_size: 2g # Alloca più memoria condivisa per prevenire crash di Chrome
+    ports:
+      - "4444:4444" # Optional -> Esponi la porta di Selenium Grid per il debug
+
